@@ -21,24 +21,22 @@ Pankaj Gupta — advice_threads
 
 ## What This Does
 
-I built this guide to help students navigate the everyday, unwritten rules of university life using the `advice_threads` corpus. Instead of scrolling through 23 messy forum threads about bike storage, meal plan tiers, CS laptop specs, or handling bad roommates, anyone can just ask a question in plain English. The system finds the most relevant replies from past students, checks that the question is actually about campus life, and uses Gemini to write a balanced summary that tells you both sides of the debate and cites the thread it came from.
+I built this guide to help students like me navigate the everyday, unwritten rules of university life using the `advice_threads` corpus. Instead of scrolling through 23 messy forum threads about bike storage, meal plan tiers, CS laptop specs, or handling bad roommates, anyone can just ask a question in plain English. The system searches through past upperclassmen replies, checks that the question is actually related to campus life, and pulls together a straight answer backed up by real student advice and thread citations.
 
 ## Chunking Strategy
 
 **Chunk size:** 280
 **Overlap:** 60
 
-### What was changed:
-We replaced the starter's fixed-size character sliding window (`fallback_split`) with a custom thread-aware paragraph splitting strategy (`chunker.py::split_documents`). Instead of slicing across fixed character counts, we split documents on paragraph breaks (`\n\n`) and prepend the original `THREAD: <topic>` line to every individual student reply.
+When I first opened the files in `advice_threads`, I noticed that each document is basically a short forum discussion: a title line at the top (`THREAD: ...`) followed by 3 or 4 separate student replies separated by blank lines. The entire thread is only 300 to 800 characters long.
 
-### Why we did it:
-1. **Preventing Cut-off Thoughts:** The default 800-character chunker blindly slices through characters and sentences. In `advice_threads` (where threads range from 317 to 793 characters), the default sliding window with step size 680 created an awkward 2-character chunk containing just `'t.'` from `thread_meal_plan_tier.txt`.
-2. **Context Preservation:** Student replies are conversational and directly address the main thread question. If a reply is severed from its prompt, the vector embedding loses semantic focus. Attaching the thread title to each reply keeps every chunk self-contained and clear for retrieval.
+The default starter used a sliding character window of 800 characters with a 680-character step. That completely butchered these short threads—in `thread_meal_plan_tier.txt`, which was 682 characters long, it grabbed the first 680 characters and then spit out an absurd 2-character chunk containing just `"t."` at the end. Even worse, blindly slicing by character count cut sentences right in half, separating critical words like "don't" from the advice that followed.
 
-### Expected Improvement / Results:
-- **Zero Cut-off Sentences:** Every chunk contains a complete, coherent student thought without broken sentences (satisfying Criterion 4).
-- **Cleaner Corpus Granularity:** Produces 75 well-bounded chunks (min 132 chars, max 281 chars, avg 202 chars) instead of irregular multi-reply slices.
-- **Sharper Retrieval & Lower Cost:** On test queries (e.g. bike commuting), retrieval distance dropped from 0.314 to 0.279, while input tokens per call decreased by ~46% (from 898 to 481 tokens).
+I started out thinking I could just tune the character numbers down, but that still risked cutting off replies awkwardly. So I changed my approach: instead of fixed character windows, I rewrote `chunker.py::split_documents` to split each thread along paragraph breaks (`\n\n`) so that every individual reply becomes its own chunk.
+
+There was one big catch though: if a student replies "I sold mine, salt destroys it," that sentence makes no sense to a retrieval model unless you know the question was about bringing a bike. To fix that, I had my chunker grab the `THREAD: ...` title from the top of the file and prepend it to every reply.
+
+This gave me 75 clean, self-contained chunks that average about 200 characters each (longest is 281, shortest is 132). Every single chunk now reads as a complete thought without cut-off sentences, and when I tested it on sample questions like the bike commute, retrieval distance got noticeably sharper (dropping from 0.314 to 0.279) while cutting our input tokens almost in half.
 
 ## Sample Chunks
 
@@ -101,14 +99,13 @@ Source: thread_bike_commute.txt
 
 **My relevance cutoff:** 0.65
 
-### What the two groups looked like and where the gap was:
-I measured the best retrieval distance for all five of my in-corpus questions and the five out-of-scope questions:
+To find the right cutoff, I ran all five of my campus questions and the five `OUT_OF_SCOPE` questions through retrieval and recorded the best distance score for each:
 
-* **In-Corpus Group:** Distances ranged from `0.2785` to `0.5286` (average: `~0.4385`). The closest match was the bike commute question (`0.2785`), while broader topics like office hours and cafes landed around `0.52`.
-* **Out-of-Scope Group:** Distances ranged from `0.8075` to `0.8964` (average: `~0.8651`). The closest unrelated query was the ibuprofen dosage question (`0.8075`).
-* **The Gap:** There is a clean, distinct gap of over `0.27` between the worst in-corpus question (`0.5286`) and the best out-of-scope question (`0.8075`).
+* **Campus questions (in corpus):** All five landed between `0.2785` and `0.5286` (averaging around `0.44`). The bike commute question had an almost exact match at `0.2785`, while broader topics like office hours and finding a quick bite sat higher, around `0.52`.
+* **Out-of-scope questions:** These were way further out, clustering tightly between `0.8075` and `0.8964` (averaging around `0.87`). Even the closest unrelated question (asking about ibuprofen dosage) couldn't get closer than `0.8075`.
+* **Where the gap was:** That left a massive, clear gap between `0.5286` (my highest in-corpus distance) and `0.8075` (the lowest out-of-scope distance)—nearly `0.28` of empty space.
 
-I set `THRESHOLD = 0.65` in `config.py`, which sits right in the middle of the `0.53` to `0.80` gap. This ensures all 5 in-corpus questions pass the relevance gate while cleanly blocking all 5 out-of-scope questions.
+I chose `0.65` for `THRESHOLD` in `config.py` because it sits comfortably right in the middle of that gap. It gives campus questions plenty of headroom to match even if phrased casually, while shutting the door firmly on off-topic questions.
 
 | Question | In corpus? | Best distance |
 |---|:---:|:---:|
@@ -125,9 +122,9 @@ I set `THRESHOLD = 0.65` in `config.py`, which sits right in the middle of the `
 
 ## How I Used AI
 
-**1.** When figuring out how to chunk the forum threads, I asked the AI how to split posts on double newlines (`\n\n`) while keeping the main question attached. The AI wrote a helper that grabbed the `THREAD:` title and glued it onto each student reply, which worked nicely. But it left `TOP_K` at 5. When I looked closely at the threads, I realized most of them only have 3 or 4 replies, so pulling 5 chunks was dragging in random advice from totally unrelated files. I went into `config.py` and changed `TOP_K` to 4 so every answer stays strictly on the topic being asked.
+**1.** When I was working on my chunking function, I asked Claude how to split each thread file by double newlines (`\n\n`) while keeping the main question attached to each chunk. It gave me a script that extracted the `THREAD:` line and prepended it to each reply, which worked well. But it left `TOP_K` set to 5. When I looked at my actual documents, almost every thread only has 3 or 4 replies total, which meant top-5 retrieval was always dragging in a 5th chunk from a completely unrelated thread. I changed `TOP_K` to 4 in `config.py` to stop that bleed.
 
-**2.** When picking my relevance cutoff in Milestone 4, I was about to set it to 0.45 thinking lower meant "stricter and better." The AI caught my mistake and explained that distance works in reverse here—0.0 is an exact match, so setting 0.45 would have blocked my own valid questions like the ones on office hours and first-gen support. Instead of guessing, I had it run all 10 test questions so I could see the real numbers. The valid questions topped out around 0.53 while the random out-of-scope ones started at 0.81, so I set the cutoff to 0.65 right in the middle of that gap.
+**2.** When I was choosing a relevance threshold in Milestone 4, I originally wanted to use 0.45 because I assumed a lower number meant a safer, tighter filter. Claude pointed out that cosine distance works backwards from similarity—0.0 is an exact match and 1.0 is unrelated—so setting 0.45 would have accidentally blocked three of my own campus questions (like office hours at 0.525). I asked it to run all 10 test questions so I could see the actual numbers side by side. Once I saw the in-corpus questions maxed out at 0.53 and the out-of-scope ones started at 0.81, I set the cutoff to 0.65 right in the middle.
 
 <!-- ── Stretch features ─────────────────────────────────────────────────────
      Doing one? Say so here BEFORE you start. A feature this README never
@@ -159,8 +156,8 @@ I set `THRESHOLD = 0.65` in `config.py`, which sits right in the middle of the `
 | 1. Retrieved chunk contains the answer | 4 of 5 |  |  |  |  |
 | 2. Every answer names a source | 5 of 5 |  |  |  |  |
 | 3. Gate stops out-of-corpus questions | 4 of 5 |  |  |  |  |
-| 4. | | | | | |
-| 5. | | | | | |
+| 4. Chunks contain complete thoughts | 4 of 5 |  |  |  |  |
+| 5. Both sides of conflicting advice included | 4 of 5 |  |  |  |  |
 
 <!-- Underneath, paste the REAL output for each criterion from one of your
      runs — the actual text your system produced, not a description of it.
@@ -224,8 +221,8 @@ I set `THRESHOLD = 0.65` in `config.py`, which sits right in the middle of the `
 | 1. Retrieved chunk contains the answer | 4 of 5 |  |  |  |  |
 | 2. Every answer names a source | 5 of 5 |  |  |  |  |
 | 3. Gate stops out-of-corpus questions | 4 of 5 |  |  |  |  |
-| 4. | | | | | |
-| 5. | | | | | |
+| 4. Chunks contain complete thoughts | 4 of 5 |  |  |  |  |
+| 5. Both sides of conflicting advice included | 4 of 5 |  |  |  |  |
 
 **Did it help?**
 
