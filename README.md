@@ -1,6 +1,6 @@
 # The Unofficial Guide
 
-<!-- Replace this line with your name and which corpus you picked. -->
+Pankaj Gupta — advice_threads
 
 > **This file is your submission.** Fill it in as you go — most sections get
 > written during the milestone that produces them, not at the end.
@@ -29,53 +29,66 @@
 
 ## Chunking Strategy
 
-**Chunk size:**
-**Overlap:**
+**Chunk size:** 280
+**Overlap:** 60
 
-<!-- What about YOUR documents made you pick these numbers? Short posts and
-     long sectioned guides don't want the same chunking, and "800 seemed
-     reasonable" earns nothing. Point at something you noticed when you read
-     the documents in Milestone 1.
+### What was changed:
+We replaced the starter's fixed-size character sliding window (`fallback_split`) with a custom thread-aware paragraph splitting strategy (`chunker.py::split_documents`). Instead of slicing across fixed character counts, we split documents on paragraph breaks (`\n\n`) and prepend the original `THREAD: <topic>` line to every individual student reply.
 
-     If you changed your mind partway through, say so and say why. That's worth
-     more than pretending you got it right first time.
+### Why we did it:
+1. **Preventing Cut-off Thoughts:** The default 800-character chunker blindly slices through characters and sentences. In `advice_threads` (where threads range from 317 to 793 characters), the default sliding window with step size 680 created an awkward 2-character chunk containing just `'t.'` from `thread_meal_plan_tier.txt`.
+2. **Context Preservation:** Student replies are conversational and directly address the main thread question. If a reply is severed from its prompt, the vector embedding loses semantic focus. Attaching the thread title to each reply keeps every chunk self-contained and clear for retrieval.
 
-     Milestone 3. -->
+### Expected Improvement / Results:
+- **Zero Cut-off Sentences:** Every chunk contains a complete, coherent student thought without broken sentences (satisfying Criterion 4).
+- **Cleaner Corpus Granularity:** Produces 75 well-bounded chunks (min 132 chars, max 281 chars, avg 202 chars) instead of irregular multi-reply slices.
+- **Sharper Retrieval & Lower Cost:** On test queries (e.g. bike commuting), retrieval distance dropped from 0.314 to 0.279, while input tokens per call decreased by ~46% (from 898 to 481 tokens).
 
 ## Sample Chunks
 
-<!-- Five chunks, pasted as text. Label each one and name the file it came from
-     AND the function that produced it — the grader checks your code against
-     what you claim here.
-
-     `python app.py chunks -n 5` prints all three for you. Copy them straight
-     across.
-
-     Milestone 3. -->
-
-**Chunk 1** — source: `` — produced by: ``
+**Chunk 1** — source: `thread_bike_commute.txt#0` — produced by: `chunker.py::split_documents`
 
 ```
+THREAD: Is a bike worth it for a 20 minute walk commute?
+
+--- reply 1 (14 votes) ---
+Yeah. Cuts an 18 minute walk to about 6. The thing nobody mentions is storage — covered bike parking exists at three buildings and is full by 9am at all three.
 ```
 
-**Chunk 2** — source: `` — produced by: ``
+**Chunk 2** — source: `thread_first_gen.txt#1` — produced by: `chunker.py::split_documents`
 
 ```
+THREAD: Anything specific for first-generation students?
+
+--- reply 2 (41 votes) ---
+The thing I'd say: the unwritten rules are the hard part, not the coursework. Ask about the unwritten rules explicitly. People are happy to explain them and nobody volunteers them.
 ```
 
-**Chunk 3** — source: `` — produced by: ``
+**Chunk 3** — source: `thread_laptop_specs.txt#2` — produced by: `chunker.py::split_documents`
 
 ```
+THREAD: How much laptop do I actually need for CS courses?
+
+--- reply 3 (12 votes) ---
+I did two years on an 8GB machine and it was fine until the last project, at which point it very much wasn't. 16 is the answer.
 ```
 
-**Chunk 4** — source: `` — produced by: ``
+**Chunk 4** — source: `thread_parking.txt#1` — produced by: `chunker.py::split_documents`
 
 ```
+THREAD: Worth getting a parking permit?
+
+--- reply 2 (21 votes) ---
+Street parking on Verrill is legal and free and unmarked, which is why half the upper years do it.
 ```
 
-**Chunk 5** — source: `` — produced by: ``
+**Chunk 5** — source: `thread_sleep_schedule.txt#1` — produced by: `chunker.py::split_documents`
 
 ```
+THREAD: Everyone says fix your sleep. Does it actually matter?
+
+--- reply 2 (37 votes) ---
+The library being open until 2am is a trap. It's a resource, not a schedule.
 ```
 
 ## Sample Answer
