@@ -21,7 +21,7 @@ Pankaj Gupta — advice_threads
 
 ## What This Does
 
-This project is a question-answering assistant built on the `advice_threads` corpus, a collection of 23 student discussion threads covering university life. The system answers practical campus questions about dorm living, bike commuting, course equipment, parking, meal plans, and academic policies by retrieving real student experiences. When asked a question, it searches the vector database for relevant reply chunks, screens out off-topic questions using a relevance distance gate, and uses Google Gemini to generate balanced, sourced answers.
+I built this guide to help students navigate the everyday, unwritten rules of university life using the `advice_threads` corpus. Instead of scrolling through 23 messy forum threads about bike storage, meal plan tiers, CS laptop specs, or handling bad roommates, anyone can just ask a question in plain English. The system finds the most relevant replies from past students, checks that the question is actually about campus life, and uses Gemini to write a balanced summary that tells you both sides of the debate and cites the thread it came from.
 
 ## Chunking Strategy
 
@@ -125,9 +125,9 @@ I set `THRESHOLD = 0.65` in `config.py`, which sits right in the middle of the `
 
 ## How I Used AI
 
-**1.** When designing the chunker for `advice_threads`, I asked the AI how to split documents along paragraph breaks (`\n\n`) while preserving the thread topic line. The AI proposed an implementation that extracted `parts[0]` as the `title` and prepended it to each reply chunk, but left `TOP_K` at 5. After reviewing the corpus structure, I noticed that each forum thread contains only 3 to 4 replies, meaning a `TOP_K` of 5 was pulling in an unrelated 5th chunk from another thread. I adjusted `TOP_K` down to 4 in `config.py`, which cleanly confined retrieval to the matching thread.
+**1.** When figuring out how to chunk the forum threads, I asked the AI how to split posts on double newlines (`\n\n`) while keeping the main question attached. The AI wrote a helper that grabbed the `THREAD:` title and glued it onto each student reply, which worked nicely. But it left `TOP_K` at 5. When I looked closely at the threads, I realized most of them only have 3 or 4 replies, so pulling 5 chunks was dragging in random advice from totally unrelated files. I went into `config.py` and changed `TOP_K` to 4 so every answer stays strictly on the topic being asked.
 
-**2.** When setting the relevance cutoff in Milestone 4, I initially considered `0.45` as a good strict threshold. The AI pointed out that distance measures dissimilarity (lower is closer, higher is farther), meaning a cutoff of `0.45` would cause the gate to accidentally reject 3 of my 5 valid in-corpus questions (such as `"Are office hours worth it?"` at distance `0.525`). Instead of guessing, I mapped out the empirical distances for all 10 questions to locate the gap between my highest in-corpus distance (`0.5286`) and lowest out-of-scope distance (`0.8075`), and set the cutoff to `0.65` in the middle of that gap.
+**2.** When picking my relevance cutoff in Milestone 4, I was about to set it to 0.45 thinking lower meant "stricter and better." The AI caught my mistake and explained that distance works in reverse here—0.0 is an exact match, so setting 0.45 would have blocked my own valid questions like the ones on office hours and first-gen support. Instead of guessing, I had it run all 10 test questions so I could see the real numbers. The valid questions topped out around 0.53 while the random out-of-scope ones started at 0.81, so I set the cutoff to 0.65 right in the middle of that gap.
 
 <!-- ── Stretch features ─────────────────────────────────────────────────────
      Doing one? Say so here BEFORE you start. A feature this README never
