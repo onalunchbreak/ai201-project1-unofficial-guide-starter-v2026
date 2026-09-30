@@ -21,11 +21,7 @@ Pankaj Gupta — advice_threads
 
 ## What This Does
 
-<!-- Three or four sentences. Which corpus you picked, and the kinds of
-     questions your system answers. Write it for someone who has never seen
-     this repo.
-
-     Milestone 5. -->
+This project is a question-answering assistant built on the `advice_threads` corpus, a collection of 23 student discussion threads covering university life. The system answers practical campus questions about dorm living, bike commuting, course equipment, parking, meal plans, and academic policies by retrieving real student experiences. When asked a question, it searches the vector database for relevant reply chunks, screens out off-topic questions using a relevance distance gate, and uses Google Gemini to generate balanced, sourced answers.
 
 ## Chunking Strategy
 
@@ -129,18 +125,9 @@ I set `THRESHOLD = 0.65` in `config.py`, which sits right in the middle of the `
 
 ## How I Used AI
 
-<!-- Two specific moments. For each: what you asked for, what came back, and
-     what you changed about it.
+**1.** When designing the chunker for `advice_threads`, I asked the AI how to split documents along paragraph breaks (`\n\n`) while preserving the thread topic line. The AI proposed an implementation that extracted `parts[0]` as the `title` and prepended it to each reply chunk, but left `TOP_K` at 5. After reviewing the corpus structure, I noticed that each forum thread contains only 3 to 4 replies, meaning a `TOP_K` of 5 was pulling in an unrelated 5th chunk from another thread. I adjusted `TOP_K` down to 4 in `config.py`, which cleanly confined retrieval to the matching thread.
 
-     "I asked Claude to write the chunking function from my notes. It ignored
-     the overlap, so I added that myself" is the level of detail we're after.
-     "I used AI to help me code" is not.
-
-     Milestone 5. -->
-
-**1.**
-
-**2.**
+**2.** When setting the relevance cutoff in Milestone 4, I initially considered `0.45` as a good strict threshold. The AI pointed out that distance measures dissimilarity (lower is closer, higher is farther), meaning a cutoff of `0.45` would cause the gate to accidentally reject 3 of my 5 valid in-corpus questions (such as `"Are office hours worth it?"` at distance `0.525`). Instead of guessing, I mapped out the empirical distances for all 10 questions to locate the gap between my highest in-corpus distance (`0.5286`) and lowest out-of-scope distance (`0.8075`), and set the cutoff to `0.65` in the middle of that gap.
 
 <!-- ── Stretch features ─────────────────────────────────────────────────────
      Doing one? Say so here BEFORE you start. A feature this README never
