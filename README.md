@@ -93,30 +93,39 @@ The library being open until 2am is a trap. It's a resource, not a schedule.
 
 ## Sample Answer
 
-<!-- One complete question and answer, pasted as text, with the source line
-     visible. Milestone 4. -->
-
-**Question:**
+**Question:** Is buying a bike worth it for campus life
 
 **Answer:**
 
 ```
+Based on the provided documents, a bike can cut an 18-minute walk down to about 6 minutes, but storage is an issue because covered bike parking fills up by 9 am, and salt from November to March can destroy a drivetrain in one season. However, doing free bike registration through the campus can help recover a bike if it is taken (thread_bike_commute.txt).
+
+Source: thread_bike_commute.txt
 ```
 
-**My relevance cutoff:**
+**My relevance cutoff:** 0.65
 
-<!-- The number you set in config.py, and how you got there.
+### What the two groups looked like and where the gap was:
+I measured the best retrieval distance for all five of my in-corpus questions and the five out-of-scope questions:
 
-     You ran five questions your corpus covers and the five in OUT_OF_SCOPE
-     that it clearly doesn't, and wrote down the best distance for each. What
-     did those two groups look like? Where was the gap? Put the actual numbers
-     here — the table below wants all ten rows.
+* **In-Corpus Group:** Distances ranged from `0.2785` to `0.5286` (average: `~0.4385`). The closest match was the bike commute question (`0.2785`), while broader topics like office hours and cafes landed around `0.52`.
+* **Out-of-Scope Group:** Distances ranged from `0.8075` to `0.8964` (average: `~0.8651`). The closest unrelated query was the ibuprofen dosage question (`0.8075`).
+* **The Gap:** There is a clean, distinct gap of over `0.27` between the worst in-corpus question (`0.5286`) and the best out-of-scope question (`0.8075`).
 
-     Milestone 4. -->
+I set `THRESHOLD = 0.65` in `config.py`, which sits right in the middle of the `0.53` to `0.80` gap. This ensures all 5 in-corpus questions pass the relevance gate while cleanly blocking all 5 out-of-scope questions.
 
 | Question | In corpus? | Best distance |
-|---|---|---|
-|  |  |  |
+|---|:---:|:---:|
+| What is the best cafe or restaurant for a quick bite? | Yes | 0.5286 |
+| Is buying a bike worth it for campus life | Yes | 0.2785 |
+| What should first generation college students expect? | Yes | 0.4584 |
+| Do I need a laptop for any classes? | Yes | 0.4024 |
+| Are office hours worth it? | Yes | 0.5248 |
+| What is the capital of Mongolia? | No | 0.8935 |
+| How do I change the oil in a diesel engine? | No | 0.8964 |
+| Who won the 1994 World Cup? | No | 0.8934 |
+| What is the recommended dosage of ibuprofen for a headache? | No | 0.8075 |
+| How do I write a for loop in Rust? | No | 0.8348 |
 
 ## How I Used AI
 
