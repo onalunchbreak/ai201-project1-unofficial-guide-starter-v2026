@@ -55,43 +55,26 @@ in at least 4 of 5 tries.
 
 ---
 
-## 4. Something about your chunks
+## 4. Chunks contain complete thoughts without cut-off sentences
 
-<!-- YOU WRITE THIS ONE.
+At least 4 of 5 sampled chunks read as a complete thought, with no sentence cut in half at either end.
 
-     How would you know if your chunks were the right size? Name something
-     countable or observable.
-
-     Examples of the right shape — don't copy these, they should come from
-     what you actually saw in Milestone 3:
-       - "At least 4 of 5 sampled chunks read as a complete thought, with no
-          sentence cut in half at either end."
-       - "No chunk is shorter than 200 characters, since anything below that
-          in my corpus turned out to be a heading with no content under it." -->
-
+<!-- This makes sense as chunks currently are split in a way that cuts sentences in half leading to loss of context based on the particular corpus used -->
 
 
 **Why this target:**
 
-
+The fallback character-based chunker blindly slices text at 800 characters. For forum replies, cutting mid-sentence loses crucial context (like cutting between "don't" and "do this").
 
 ---
 
-## 5. Your choice
+## 5. Both Sides of Conflicting Advice included
 
-<!-- YOU WRITE THIS ONE TOO.
-
-     Pick something you actually care about getting right. It could be about
-     speed, about refusals, about a particular kind of question your corpus
-     handles badly, about source attribution being correct rather than merely
-     present — anything, as long as it names a number or an observable
-     outcome. -->
-
-
+For at least 4 of 5 questions, when the conversation thread contains disagreeing or conflicting replies, the generated answer should mention both perspectives (pros and cons) rather than picking just one person's opinion.
 
 **Why this target:**
 
-
+The advice_threads corpus is full of disagreement (e.g. one student says bring a bike, another says winter salt ruins it). A good answer should synthesize the community debate, not just parrot one person.
 
 ---
 
